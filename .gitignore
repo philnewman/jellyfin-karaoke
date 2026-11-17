@@ -1,0 +1,7 @@
+bin/
+obj/
+out/
+test/data/
+__pycache__/
+worker/.venv/
+worker/.env

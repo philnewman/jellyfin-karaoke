@@ -1,0 +1,47 @@
+name: Build plugin
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        run: dotnet publish Jellyfin.Plugin.Karaoke -c Release -o out
+
+      - name: Check the client script and worker
+        run: |
+          node --check Jellyfin.Plugin.Karaoke/Web/karaoke.js
+          python3 -m py_compile worker/worker.py test/mock_server.py
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp out/Jellyfin.Plugin.Karaoke.dll dist/
+          cd dist && zip -q ../jellyfin-plugin-karaoke.zip Jellyfin.Plugin.Karaoke.dll
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jellyfin-plugin-karaoke
+          path: jellyfin-plugin-karaoke.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" jellyfin-plugin-karaoke.zip --clobber

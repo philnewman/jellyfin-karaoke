@@ -1,0 +1,31 @@
+# Karaoke separation worker in Docker, for a Linux machine with at least 2 GB of memory free.
+# Not suitable for a Raspberry Pi that is also running Jellyfin (separation peaks at about 1.1 GB).
+#
+#   docker compose -f docker-compose.example.yml up -d --build
+services:
+  karaoke-worker:
+    build: .
+    container_name: karaoke-worker
+    restart: unless-stopped
+    environment:
+      # If Jellyfin runs in the same compose project, its service name works here.
+      JELLYFIN_URL: "http://jellyfin:8096"
+      JELLYFIN_API_KEY: "paste-your-api-key-here"
+      THREADS: "4"
+      # Memory guards (see worker.py): a song that goes over MAX_MEMORY_MB is stopped,
+      # and a song only starts when MIN_FREE_MB is available.
+      MAX_MEMORY_MB: "1800"
+      MIN_FREE_MB: "2000"
+      # Optional: only separate between these hours, e.g. overnight.
+      # ACTIVE_HOURS: "23-7"
+    # If memory runs out, the kernel kills this container before anything else.
+    oom_score_adj: 1000
+    # Hard caps. Ignored where the kernel's memory cgroup is disabled
+    # (Docker prints "WARNING: No memory limit support" in `docker info`).
+    mem_limit: 2g
+    memswap_limit: 2g
+    volumes:
+      - karaoke-models:/models
+
+volumes:
+  karaoke-models:

@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Karaoke test player</title>
+<script defer src="/Karaoke/ClientScript"></script>
+<style>
+  body { font-family: sans-serif; background: #101010; color: #eee; margin: 0; padding: 1em 1em 6em; }
+  .nowPlayingBar { position: fixed; left: 0; right: 0; bottom: 0; height: 4em; background: #181818; display: flex; align-items: center; justify-content: flex-end; padding: 0 1em; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<!-- Imitates the parts of jellyfin-web the karaoke script touches: an <audio class="mediaPlayerAudio">,
+     an optional Web Audio gain node (what "audio normalisation" creates), and a now-playing bar.
+     Add ?norm=0 to imitate normalisation being switched off. -->
+<p>
+  <button id="playA">Play song A</button>
+  <button id="playB">Play song B</button>
+  <button id="pause">Pause / resume</button>
+</p>
+<pre id="out"></pre>
+<div class="nowPlayingBar"><div class="nowPlayingBarRight"></div></div>
+<script>
+window.ApiClient = {
+  accessToken: function () { return 'testtoken'; },
+  getUrl: function (p, params) { return '/' + p + (params ? '?' + new URLSearchParams(params) : ''); }
+};
+var norm = location.search.indexOf('norm=0') < 0;
+var el, appGain;
+var IDS = { A: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', B: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' };
+
+function play(id) {
+  if (!el) {
+    el = document.createElement('audio');
+    el.className = 'mediaPlayerAudio';
+    document.body.appendChild(el);
+  }
+  if (norm && !appGain) {
+    var ctx = new AudioContext();
+    var src = ctx.createMediaElementSource(el);
+    appGain = ctx.createGain();
+    src.connect(appGain);
+    appGain.connect(ctx.destination);
+  }
+  el.autoplay = true;
+  el.src = '/Audio/' + id + '/universal?UserId=u&DeviceId=d&ApiKey=testtoken';
+  return el.play();
+}
+document.getElementById('playA').onclick = function () { play(IDS.A); };
+document.getElementById('playB').onclick = function () { play(IDS.B); };
+document.getElementById('pause').onclick = function () { if (el) { el.paused ? el.play() : el.pause(); } };
+
+// Reports the level (dB) of each test tone in the left and right output.
+// The test song has 60 Hz and 1000 Hz in the centre, 440 Hz left only, 2500 Hz right only.
+var probe;
+window.measure = function () {
+  var tap = appGain || (window.__jfKaraoke.graph && window.__jfKaraoke.graph.out);
+  if (!tap) return Promise.resolve('no audio graph to measure');
+  if (!probe || probe.tap !== tap) {
+    var ctx = tap.context;
+    var sp = ctx.createChannelSplitter(2);
+    tap.connect(sp);
+    probe = { tap: tap, ctx: ctx, an: [0, 1].map(function (i) {
+      var a = ctx.createAnalyser(); a.fftSize = 16384; a.smoothingTimeConstant = 0; sp.connect(a, i); return a;
+    }) };
+  }
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      var res = {};
+      ['L', 'R'].forEach(function (name, i) {
+        var a = probe.an[i], d = new Float32Array(a.frequencyBinCount);
+        a.getFloatFrequencyData(d);
+        [60, 440, 1000, 2500].forEach(function (f) {
+          var bin = Math.round(f * a.fftSize / probe.ctx.sampleRate), m = -200;
+          for (var b = bin - 2; b <= bin + 2; b++) m = Math.max(m, d[b]);
+          res[name + f] = Math.round(m);
+        });
+      });
+      res.mode = window.__jfKaraoke.usingStems ? 'stems' : (window.__jfKaraoke.enabled ? 'cancel' : 'bypass');
+      res.time = el ? Math.round(el.currentTime * 10) / 10 : null;
+      res.src = el ? el.currentSrc.replace(location.origin, '').split('?')[0] : null;
+      document.getElementById('out').textContent = JSON.stringify(res, null, 1);
+      resolve(JSON.stringify(res));
+    }, 700);
+  });
+};
+</script>
+</body>
+</html>
