@@ -165,7 +165,8 @@ public class KaraokeController : ControllerBase
             {
                 ItemId = job.ItemId.ToString("N"),
                 Name = job.Name,
-                Extension = Path.GetExtension(item.Path)
+                Extension = Path.GetExtension(item.Path),
+                RunTimeSeconds = item.RunTimeTicks.HasValue ? item.RunTimeTicks.Value / (double)TimeSpan.TicksPerSecond : null
             };
         }
     }
@@ -260,5 +261,8 @@ public class KaraokeController : ControllerBase
         public string Name { get; set; } = string.Empty;
 
         public string Extension { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the song's length, so the worker can check its result is complete.</summary>
+        public double? RunTimeSeconds { get; set; }
     }
 }

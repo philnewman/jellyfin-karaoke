@@ -36,6 +36,7 @@ Test separation on a local file, without a server:
   python worker.py --separate INPUT_FILE OUTPUT_DIR
 """
 
+import http.client
 import json
 import math
 import os
@@ -315,9 +316,33 @@ def claim():
         return json.loads(resp.read().decode("utf-8"))
 
 
-def download(item_id, dest):
-    with request("GET", "/Karaoke/Jobs/%s/Source" % item_id, timeout=600) as resp, open(dest, "wb") as f:
-        shutil.copyfileobj(resp, f)
+def download(item_id, dest, attempts=3):
+    """Downloads the original song, retrying if the connection drops partway.
+
+    A dropped connection can look like a normal end of file, and ffmpeg happily decodes a
+    partial MP3, so a short download would otherwise become a short AI file.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            with request("GET", "/Karaoke/Jobs/%s/Source" % item_id, timeout=600) as resp, \
+                    open(dest, "wb") as f:
+                expected = resp.headers.get("Content-Length")
+                shutil.copyfileobj(resp, f)
+                got = f.tell()
+            if expected is not None and got != int(expected):
+                raise IOError("download was cut off: got %d of %s bytes" % (got, expected))
+            return
+        except (OSError, http.client.HTTPException) as exc:
+            if attempt == attempts:
+                raise
+            log("Download problem (%s); retrying in 30 s" % exc)
+            time.sleep(30)
+
+
+def audio_seconds(path):
+    import soundfile as sf
+    info = sf.info(path)
+    return info.frames / float(info.samplerate)
 
 
 def run(cmd):
@@ -373,6 +398,13 @@ def process(job):
         src = os.path.join(work, "input" + ext)
         download(item_id, src)
         inst, voc, peak = separate(src, work)
+        # Never store an AI file that is shorter than the song: playback would stop where it ends.
+        expected = pick(job, "RunTimeSeconds")
+        if expected:
+            got = audio_seconds(inst)
+            if got < float(expected) - max(10.0, 0.1 * float(expected)):
+                raise RuntimeError("the result is %.0f s long but the song is %.0f s; the download "
+                                   "or decode was incomplete" % (got, float(expected)))
         stems = os.path.join(work, "stems.webm")
         mux(inst, voc, stems)
         with open(stems, "rb") as f:
