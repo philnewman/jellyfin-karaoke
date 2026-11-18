@@ -12,4 +12,10 @@ fi
 set -a
 . ./.env
 set +a
-exec nice -n 10 .venv/bin/python -u worker.py
+# WORKER_SPEED=background (default) lets macOS throttle the worker so it never slows down
+# what you're doing: about 16 minutes for a 4-minute song. normal takes about 9.
+case "${WORKER_SPEED:-background}" in
+    background) exec /usr/sbin/taskpolicy -b nice -n 10 .venv/bin/python -u worker.py ;;
+    normal) exec nice -n 10 .venv/bin/python -u worker.py ;;
+    *) echo "WORKER_SPEED must be background or normal, not '$WORKER_SPEED'." >&2; exit 1 ;;
+esac

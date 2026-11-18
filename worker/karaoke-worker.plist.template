@@ -17,9 +17,9 @@
     <true/>
     <key>ThrottleInterval</key>
     <integer>60</integer>
-    <!-- Lower priority so it never competes with what you are doing. -->
+    <!-- Throttling is set by WORKER_SPEED in .env (run-mac.sh), so launchd leaves it alone. -->
     <key>ProcessType</key>
-    <string>Background</string>
+    <string>Standard</string>
     <key>LowPriorityIO</key>
     <true/>
     <key>StandardOutPath</key>

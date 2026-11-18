@@ -170,6 +170,20 @@ The worker logs to `~/Library/Logs/karaoke-worker.log`. Watch it:
 tail -f ~/Library/Logs/karaoke-worker.log
 ```
 
+By default macOS throttles the worker so it never slows down what you're doing: on a 6-core Intel
+Mac a 4-minute song takes about 16 minutes. To trade that for speed (about 9 minutes), set
+`WORKER_SPEED=normal` in `worker/.env` and restart the worker:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/local.karaoke-worker
+```
+
+Restarting stops the song in progress, which goes back in the queue only after the worker
+timeout (4 hours by default), so restart between songs if you can.
+
+If your login item was installed before this setting existed, run `./worker/install-mac.sh` once
+so it picks the setting up.
+
 Stop it and remove the login item (the worker folder and `.env` are kept):
 
 ```bash
@@ -256,6 +270,7 @@ karaoke mode on: the panel says "Using AI-separated vocals for this song (best q
 | `JELLYFIN_URL` | (required) | Server address as the worker's machine reaches it |
 | `JELLYFIN_API_KEY` | (required) | From Dashboard → API Keys |
 | `THREADS` | 2 | CPU threads for separation |
+| `WORKER_SPEED` | background | Mac only. `background` lets macOS throttle the worker; `normal` runs it about 1.7× faster. |
 | `MAX_MEMORY_MB` | 900 | Stop a song whose separation uses more. Never above free memory at the start minus `RESERVE_MB`. |
 | `RESERVE_MB` | 500 | Memory always left for everything else |
 | `MIN_FREE_MB` | 1000 | Wait until this much is free before starting a song |
