@@ -102,7 +102,7 @@ Either way you need one file: `Jellyfin.Plugin.Karaoke.dll`.
    ```
 
 4. Check **Dashboard → Plugins**: "Karaoke" should be listed as Active. The server log
-   shows `Loaded plugin: Karaoke 1.1.1.0`. A hand-installed copy shows Developer and Repository as
+   shows `Loaded plugin: Karaoke 1.2.0.0`. A hand-installed copy shows Developer and Repository as
    "Unknown"; that's only cosmetic.
 
 ## 2. Check the karaoke button
@@ -317,6 +317,12 @@ user agent, or use the server's local address.
 **Worker log says it used more than its memory limit, or is waiting for memory.** Close other
 programs, raise `MAX_MEMORY_MB` if the machine has room, or lower `DEMUCS_SEGMENT`.
 Failed songs can be queued again from the settings page.
+
+**Karaoke mode stops a song partway and goes back to the home screen.** The song's AI version is
+shorter than the song, usually because the worker's download of it was cut off (versions before
+1.2 didn't check). Remove it with `DELETE /Karaoke/Items/{id}/Stems` (admin) and queue the song
+again. Since 1.2 the worker checks the download and the result's length and reports a failure
+instead.
 
 **A song is stuck as "Processing".** The worker stopped mid-song. After the worker timeout it goes
 back in the queue automatically.
