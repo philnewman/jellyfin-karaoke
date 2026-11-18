@@ -19,6 +19,10 @@ playing, the panel offers to switch over without losing your place.
 
 Built for **Jellyfin 12.2** and the web client in Chrome, Edge or other Chromium browsers.
 
+**Pairs with [Jellyfin Karaoke Lyrics](https://github.com/philnewman/jellyfin-karaoke-lyrics)**,
+which highlights the current line of synchronized lyrics and keeps it scrolled into view. This
+plugin lowers the vocals; that one shows the words. The two can be installed side by side.
+
 ## Contents
 
 - [How the pieces fit](#how-the-pieces-fit)
