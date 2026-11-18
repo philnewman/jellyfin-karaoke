@@ -102,7 +102,7 @@ Either way you need one file: `Jellyfin.Plugin.Karaoke.dll`.
    ```
 
 4. Check **Dashboard → Plugins**: "Karaoke" should be listed as Active. The server log
-   shows `Loaded plugin: Karaoke 1.1.0.0`. A hand-installed copy shows Developer and Repository as
+   shows `Loaded plugin: Karaoke 1.1.1.0`. A hand-installed copy shows Developer and Repository as
    "Unknown"; that's only cosmetic.
 
 ## 2. Check the karaoke button
