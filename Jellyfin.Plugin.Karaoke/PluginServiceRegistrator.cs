@@ -12,6 +12,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<StemStore>();
+        serviceCollection.AddSingleton<PlaylistSync>();
+        serviceCollection.AddHostedService(sp => sp.GetRequiredService<PlaylistSync>());
         serviceCollection.AddTransient<IStartupFilter, ScriptInjectionStartupFilter>();
     }
 }

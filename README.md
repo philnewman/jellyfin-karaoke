@@ -60,7 +60,22 @@ Instant mode needs only steps 1 and 2. AI mode also needs step 3.
 
 ## 1. Install the server plugin
 
-### Get the plugin file
+### From the plugin catalog (recommended)
+
+1. In Jellyfin, open **Dashboard → Plugins → Repositories** (on older versions, the
+   **Repositories** tab under Plugins) and add a repository:
+   - Name: `Karaoke`
+   - URL: `https://raw.githubusercontent.com/philnewman/jellyfin-karaoke/main/manifest.json`
+2. Open **Catalog**, find **Karaoke** under General, and install it.
+3. Restart Jellyfin.
+
+Installing from the catalog fills in the plugin's developer and repository details and lets
+Jellyfin offer updates. To switch a copy you installed by hand, delete its `plugins/Karaoke`
+folder, then install from the catalog and restart.
+
+### Or install it by hand
+
+#### Get the plugin file
 
 Either download `jellyfin-plugin-karaoke.zip` from this repository's **Releases** page and unzip it,
 or build it yourself. Building needs the .NET 10 SDK, or just Docker:
@@ -75,7 +90,7 @@ dotnet publish Jellyfin.Plugin.Karaoke -c Release -o out
 
 Either way you need one file: `Jellyfin.Plugin.Karaoke.dll`.
 
-### Copy it into Jellyfin
+#### Copy it into Jellyfin
 
 1. In Jellyfin's config folder (`/config` inside the official Docker image), create
    `plugins/Karaoke/`.
@@ -86,8 +101,9 @@ Either way you need one file: `Jellyfin.Plugin.Karaoke.dll`.
    docker restart jellyfin
    ```
 
-4. Check **Dashboard → Plugins**: "Karaoke 1.0.0.0" should be listed as Active. The server log
-   shows `Loaded plugin: Karaoke 1.0.0.0`.
+4. Check **Dashboard → Plugins**: "Karaoke" should be listed as Active. The server log
+   shows `Loaded plugin: Karaoke 1.1.0.0`. A hand-installed copy shows Developer and Repository as
+   "Unknown"; that's only cosmetic.
 
 ## 2. Check the karaoke button
 
@@ -212,6 +228,11 @@ karaoke mode on: the panel says "Using AI-separated vocals for this song (best q
   Allow roughly twice the music's length: a 20-song playlist takes about 3 hours.
 - **Progress.** The "Separation queue" at the bottom of the same settings page lists waiting,
   processing and failed songs. Reload the page to update it. A song leaves the list when it is ready.
+- **Karaoke Ready playlist (optional).** Tick "Keep a playlist of every song with AI karaoke
+  stems" in the settings and save. The plugin creates a public playlist (named "Karaoke Ready"
+  unless you change it) holding every song with an AI version, sorted by artist, album and track,
+  and adds each new song as the worker finishes it. Turning the option off leaves the playlist as
+  it is; delete it yourself if you no longer want it.
 - **Whole library?** Possible but rarely worth it: 10,000 songs is several weeks of processing and
   around 60–70 GB of storage.
 
@@ -224,6 +245,9 @@ karaoke mode on: the panel says "Using AI-separated vocals for this song (best q
 | Add the karaoke button to the web client | on | Adds the client script to the web client. Turn off if JavaScript Injector loads it instead. |
 | Queue a song for AI separation the first time karaoke mode is used on it | on | Turn off to queue only by hand. |
 | Worker timeout (minutes) | 240 | A song a worker has held longer than this goes back in the queue (up to 3 attempts). |
+| Keep a playlist of every song with AI karaoke stems | off | Maintains a public playlist of ready songs. |
+| Playlist name | Karaoke Ready | Renaming starts a new playlist; the old one stays. |
+| Playlist owner | First administrator | The user who can edit the playlist. |
 
 ### Worker (environment variables, or `worker/.env` on a Mac)
 
@@ -297,6 +321,7 @@ back in the queue automatically.
 Jellyfin.Plugin.Karaoke/
   Api/KaraokeController.cs       HTTP endpoints under /Karaoke
   Services/StemStore.cs          queue (jobs.json) and stored AI files
+  Services/PlaylistSync.cs       optional Karaoke Ready playlist
   Web/karaoke.js                 client script
   Web/ScriptInjectionStartupFilter.cs   adds the script tag to index.html
   Configuration/                 plugin settings and settings page
@@ -306,6 +331,8 @@ worker/
   Dockerfile, docker-compose.example.yml
 test/
   mock_server.py, player.html    stand-ins for Jellyfin and its web player
+manifest.json                    Jellyfin plugin repository (updated by CI on each release)
+scripts/update_manifest.py       adds a release to manifest.json
 ```
 
 ### Endpoints
@@ -319,6 +346,7 @@ test/
 | `GET /Karaoke/Items/{id}/Stems` | signed-in user | The 4-channel AI file |
 | `DELETE /Karaoke/Items/{id}/Stems` | admin | Remove a song's AI file |
 | `GET /Karaoke/Queue` | admin | Queue contents |
+| `POST /Karaoke/Playlist/Sync` | admin | Bring the Karaoke Ready playlist up to date now |
 | `POST /Karaoke/Jobs/Claim` | admin / API key | Worker takes the next song |
 | `GET /Karaoke/Jobs/{id}/Source` | admin / API key | Worker downloads the original file |
 | `POST /Karaoke/Jobs/{id}/Complete` | admin / API key | Worker uploads the result |

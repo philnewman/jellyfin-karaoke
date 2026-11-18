@@ -29,11 +29,13 @@ public class KaraokeController : ControllerBase
 
     private readonly StemStore _store;
     private readonly ILibraryManager _libraryManager;
+    private readonly PlaylistSync _playlistSync;
 
-    public KaraokeController(StemStore store, ILibraryManager libraryManager)
+    public KaraokeController(StemStore store, ILibraryManager libraryManager, PlaylistSync playlistSync)
     {
         _store = store;
         _libraryManager = libraryManager;
+        _playlistSync = playlistSync;
     }
 
     [HttpGet("ClientScript")]
@@ -115,6 +117,7 @@ public class KaraokeController : ControllerBase
     public ActionResult DeleteStems([FromRoute] Guid itemId)
     {
         _store.Remove(itemId);
+        _playlistSync.Trigger();
         return NoContent();
     }
 
@@ -127,6 +130,14 @@ public class KaraokeController : ControllerBase
             ReadyCount = _store.GetReadyIds().Count,
             Jobs = _store.GetJobs()
         };
+    }
+
+    /// <summary>Brings the Karaoke Ready playlist up to date now.</summary>
+    [HttpPost("Playlist/Sync")]
+    [Authorize(Policy = Elevated)]
+    public async Task<ActionResult<MessageDto>> SyncPlaylist()
+    {
+        return new MessageDto { Message = await _playlistSync.SyncAsync().ConfigureAwait(false) };
     }
 
     [HttpPost("Jobs/Claim")]
@@ -186,6 +197,7 @@ public class KaraokeController : ControllerBase
             return BadRequest(ex.Message);
         }
 
+        _playlistSync.Trigger();
         return NoContent();
     }
 
@@ -234,6 +246,11 @@ public class KaraokeController : ControllerBase
         public int ReadyCount { get; set; }
 
         public IReadOnlyList<KaraokeJob> Jobs { get; set; } = Array.Empty<KaraokeJob>();
+    }
+
+    public class MessageDto
+    {
+        public string Message { get; set; } = string.Empty;
     }
 
     public class ClaimDto

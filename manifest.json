@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "7c1b3f0e-5d2a-4e8b-9a6f-2f4d8c1e7b53",
+    "name": "Karaoke",
+    "description": "Adds a karaoke toggle and vocal level slider to the web music player, with instant vocal reduction in the browser and AI-separated stems from a background worker.",
+    "overview": "Karaoke mode for the Jellyfin web music player",
+    "owner": "philnewman",
+    "category": "General",
+    "imageUrl": "",
+    "versions": []
+  }
+]

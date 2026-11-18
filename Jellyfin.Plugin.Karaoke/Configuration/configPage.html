@@ -5,7 +5,7 @@
     <title>Karaoke</title>
 </head>
 <body>
-    <div id="KaraokeConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div id="KaraokeConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-select">
         <div data-role="content">
             <div class="content-primary">
                 <form id="KaraokeConfigForm">
@@ -30,6 +30,26 @@
                         <label class="inputLabel inputLabelUnfocused" for="ClaimTimeoutMinutes">Worker timeout (minutes)</label>
                         <input id="ClaimTimeoutMinutes" name="ClaimTimeoutMinutes" type="number" is="emby-input" min="5" />
                         <div class="fieldDescription">A song a worker has held longer than this goes back in the queue.</div>
+                    </div>
+                    <h2 class="sectionTitle" style="margin-top:1.5em">Playlist</h2>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="MaintainPlaylist" name="MaintainPlaylist" type="checkbox" is="emby-checkbox" />
+                            <span>Keep a playlist of every song with AI karaoke stems</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">The playlist is public, so every user sees it. Songs are added as the worker finishes them. Turning this off stops the updates but doesn't delete the playlist.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="PlaylistName">Playlist name</label>
+                        <input id="PlaylistName" name="PlaylistName" type="text" is="emby-input" />
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="PlaylistUserId">Playlist owner</label>
+                        <select id="PlaylistUserId" name="PlaylistUserId" is="emby-select"></select>
+                        <div class="fieldDescription">The user who can edit the playlist.</div>
+                    </div>
+                    <div style="margin-bottom:1.5em">
+                        <button is="emby-button" type="button" id="KaraokeSyncButton" class="raised emby-button"><span>Update playlist now</span></button>
                     </div>
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
@@ -101,6 +121,24 @@
                         page.querySelector('#InjectClientScript').checked = config.InjectClientScript;
                         page.querySelector('#AutoQueueOnUse').checked = config.AutoQueueOnUse;
                         page.querySelector('#ClaimTimeoutMinutes').value = config.ClaimTimeoutMinutes;
+                        page.querySelector('#MaintainPlaylist').checked = config.MaintainPlaylist;
+                        page.querySelector('#PlaylistName').value = config.PlaylistName || 'Karaoke Ready';
+                        return ApiClient.getUsers().then(function (users) {
+                            var select = page.querySelector('#PlaylistUserId');
+                            select.textContent = '';
+                            var first = document.createElement('option');
+                            first.value = '';
+                            first.textContent = 'First administrator';
+                            select.appendChild(first);
+                            users.forEach(function (u) {
+                                var o = document.createElement('option');
+                                o.value = u.Id;
+                                o.textContent = u.Name;
+                                select.appendChild(o);
+                            });
+                            select.value = config.PlaylistUserId || '';
+                        });
+                    }).finally(function () {
                         Dashboard.hideLoadingMsg();
                     });
                     loadQueue();
@@ -113,11 +151,22 @@
                         config.InjectClientScript = page.querySelector('#InjectClientScript').checked;
                         config.AutoQueueOnUse = page.querySelector('#AutoQueueOnUse').checked;
                         config.ClaimTimeoutMinutes = parseInt(page.querySelector('#ClaimTimeoutMinutes').value, 10) || 240;
+                        config.MaintainPlaylist = page.querySelector('#MaintainPlaylist').checked;
+                        config.PlaylistName = page.querySelector('#PlaylistName').value.trim() || 'Karaoke Ready';
+                        config.PlaylistUserId = page.querySelector('#PlaylistUserId').value;
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });
                     });
                     return false;
+                });
+
+                page.querySelector('#KaraokeSyncButton').addEventListener('click', function () {
+                    call('Karaoke/Playlist/Sync', 'POST').then(function (r) {
+                        Dashboard.alert(pick(r, 'Message'));
+                    }).catch(function (e) {
+                        Dashboard.alert('Could not update the playlist: ' + e.message);
+                    });
                 });
 
                 page.querySelector('#KaraokeQueueButton').addEventListener('click', function () {
